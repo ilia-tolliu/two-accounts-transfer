@@ -1,0 +1,19 @@
+{
+  "name": "two-accounts-transfer",
+  "version": "1.0.0",
+  "description": "Example of implementing money transfer between two bank account with event sourcing",
+  "license": "ISC",
+  "author": "Ilia Tolliu",
+  "type": "module",
+  "main": "index.ts",
+  "scripts": {
+    "run": "node ./src/index.ts",
+    "test": "vitest --run"
+  },
+  "devDependencies": {
+    "@tsconfig/node24": "^24.0.1",
+    "@types/node": "^24.0.10",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}
