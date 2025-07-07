@@ -7,7 +7,7 @@
   "type": "module",
   "main": "index.ts",
   "scripts": {
-    "run": "node ./src/index.ts",
+    "start": "node ./src/index.ts",
     "test": "vitest --run"
   },
   "devDependencies": {
