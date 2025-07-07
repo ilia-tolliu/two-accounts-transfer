@@ -1,4 +1,4 @@
-import {beforeEach, describe, it, expect, assert} from 'vitest';
+import {assert, beforeEach, describe, expect, it, vi} from 'vitest';
 import {AccountController} from './account-controller.ts';
 import {
     EVENT_ACCOUNT_FUNDS_DEPOSITED,
@@ -10,14 +10,17 @@ import {
     STREAM_ACCOUNT,
     STREAM_TRANSFER
 } from './domain.ts';
-import { EventStore } from './event-store.ts';
+import {EventStore} from './event-store.ts';
 
 const eventStore = new EventStore();
 const accountController = new AccountController(eventStore);
 
+const spy_appendEvent = vi.spyOn(eventStore, 'appendEvent');
+
 describe('Account controller', () => {
     beforeEach(() => {
         eventStore.reset();
+        vi.clearAllMocks();
     })
 
     it('Open account', () => {
@@ -112,6 +115,8 @@ describe('Account controller', () => {
                 () => accountController.startOutgoingTransfer(accountId, transferId, 70),
                 `Invalid state: insufficient funds, ${accountId}:${STREAM_ACCOUNT}`
             );
+
+            expect(spy_appendEvent).not.toBeCalled();
         });
     });
 
@@ -146,28 +151,50 @@ describe('Account controller', () => {
         });
     })
 
-    it('Complete transfer', () => {
-        const accountId = eventStore.stubStream(STREAM_ACCOUNT, [
-            {
-                eventType: EVENT_ACCOUNT_OPENED,
-                payload: {owner: 'Test Owner'}
-            },
-            {
-                eventType: EVENT_ACCOUNT_INCOMING_TRANSFER_STARTED,
-                payload: {transferId: 567, amount: 123}
-            }
-        ]);
+    describe('Complete transfer', () => {
+        it('happy case', () => {
+            const accountId = eventStore.stubStream(STREAM_ACCOUNT, [
+                {
+                    eventType: EVENT_ACCOUNT_OPENED,
+                    payload: {owner: 'Test Owner'}
+                },
+                {
+                    eventType: EVENT_ACCOUNT_INCOMING_TRANSFER_STARTED,
+                    payload: {transferId: 567, amount: 123}
+                }
+            ]);
 
-        accountController.completeTransfer(accountId, 567);
+            accountController.completeTransfer(accountId, 567);
 
-        const events = eventStore.getEvents(STREAM_ACCOUNT, accountId);
-        expect(events).toHaveLength(3);
+            const events = eventStore.getEvents(STREAM_ACCOUNT, accountId);
+            expect(events).toHaveLength(3);
 
-        const event = events[2];
-        expect(event.eventType).toEqual(EVENT_ACCOUNT_TRANSFER_COMPLETED);
-        expect(event.revision).toEqual(3);
-        expect(event.payload).toEqual({
-            transferId: 567
+            const event = events[2];
+            expect(event.eventType).toEqual(EVENT_ACCOUNT_TRANSFER_COMPLETED);
+            expect(event.revision).toEqual(3);
+            expect(event.payload).toEqual({
+                transferId: 567
+            });
+        });
+
+        it('unexpected transfer', () => {
+            const accountId = eventStore.stubStream(STREAM_ACCOUNT, [
+                {
+                    eventType: EVENT_ACCOUNT_OPENED,
+                    payload: {owner: 'Test Owner'}
+                },
+                {
+                    eventType: EVENT_ACCOUNT_INCOMING_TRANSFER_STARTED,
+                    payload: {transferId: 567, amount: 123}
+                }
+            ]);
+
+            assert.throws(
+                () => accountController.completeTransfer(accountId, 890),
+                `Invalid state: account doesn't expect transferId 890, ${accountId}:${STREAM_ACCOUNT}`
+            );
+
+            expect(spy_appendEvent).not.toBeCalled();
         });
     })
 })
